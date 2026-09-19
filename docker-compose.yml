@@ -1,0 +1,93 @@
+services:
+  db-atletas:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: mcp
+      POSTGRES_PASSWORD: mcp
+      POSTGRES_DB: mcp_atletas
+    volumes:
+      - ./init-atletas.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - rede-mtb
+
+  db-resultados:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: mcp
+      POSTGRES_PASSWORD: mcp
+      POSTGRES_DB: mcp_resultados
+    volumes:
+      - ./init-resultados.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - rede-mtb
+
+  service-atletas:
+    build:
+      context: ./service-atletas
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://mcp:mcp@db-atletas:5432/mcp_atletas
+    depends_on:
+      - db-atletas
+    networks:
+      - rede-mtb
+
+  service-resultados:
+    build:
+      context: ./service-resultados
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - DATABASE_URL=postgresql://mcp:mcp@db-resultados:5432/mcp_resultados
+    depends_on:
+      - db-resultados
+    networks:
+      - rede-mtb
+
+  service-rankings:
+    build:
+      context: ./service-rankings
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3000"
+    environment:
+      - DATABASE_URL=postgresql://mcp:mcp@db-resultados:5432/mcp_resultados
+    depends_on:
+      - db-resultados
+    networks:
+      - rede-mtb
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - service-atletas
+      - service-resultados
+      - service-rankings
+    networks:
+      - rede-mtb
+
+  chat-client:
+    build:
+      context: ./chat-client
+      dockerfile: Dockerfile
+    ports:
+      - "3005:3005"
+    depends_on:
+      - mcp-server
+    networks:
+      - rede-mtb
+
+networks:
+  rede-mtb:
+    driver: bridge
